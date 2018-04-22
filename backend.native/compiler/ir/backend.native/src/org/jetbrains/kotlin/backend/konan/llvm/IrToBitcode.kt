@@ -20,6 +20,7 @@ import kotlinx.cinterop.*
 import llvm.*
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.ir.ir2string
+import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
@@ -67,12 +68,6 @@ internal fun emitLLVM(context: Context) {
 
     val phaser = PhaseManager(context)
 
-    phaser.phase(KonanPhase.RTTI) {
-        irModule.acceptVoid(RTTIGeneratorVisitor(context))
-    }
-
-    generateDebugInfoHeader(context)
-
     var moduleDFG: ModuleDFG? = null
     phaser.phase(KonanPhase.BUILD_DFG) {
         moduleDFG = ModuleDFGBuilder(context, irModule).build()
@@ -89,11 +84,24 @@ internal fun emitLLVM(context: Context) {
 
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
     var devirtualizationAnalysisResult: Devirtualization.AnalysisResult? = null
-    phaser.phase(KonanPhase.DEVIRTUALIZATION) {
+    phaser.phase(KonanPhase.DEVIRT_ANALYSIS) {
         devirtualizationAnalysisResult = Devirtualization.run(irModule, context, moduleDFG!!, externalModulesDFG!!)
+    }
 
+    phaser.phase(KonanPhase.DEAD_CODE) {
+        val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG!!, devirtualizationAnalysisResult, true).build()
+        IrDeadCode(context, moduleDFG!!, callGraph).run()
+    }
+
+    phaser.phase(KonanPhase.DEVIRTUALIZATION) {
         val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport()
+
         privateFunctions.forEachIndexed { index, it ->
+            if (dceNotNeeded.contains(it)) {
+                // println("### DCE: skipping private function ${it.name} $it")
+                return@forEachIndexed
+            }
+
             val function = codegenVisitor.codegen.llvmFunction(it)
             LLVMAddAlias(
                     context.llvmModule,
@@ -120,12 +128,19 @@ internal fun emitLLVM(context: Context) {
 
     phaser.phase(KonanPhase.ESCAPE_ANALYSIS) {
         val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG!!, devirtualizationAnalysisResult, false).build()
+        context.callGraph = callGraph
         EscapeAnalysis.computeLifetimes(context, moduleDFG!!, externalModulesDFG!!, callGraph, lifetimes)
     }
 
     phaser.phase(KonanPhase.SERIALIZE_DFG) {
         DFGSerializer.serialize(context, moduleDFG!!)
     }
+
+    phaser.phase(KonanPhase.RTTI) {
+        irModule.acceptVoid(RTTIGeneratorVisitor(context))
+    }
+
+    generateDebugInfoHeader(context)
 
     phaser.phase(KonanPhase.CODEGEN) {
         irModule.acceptVoid(codegenVisitor)
@@ -660,6 +675,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     override fun visitFunction(declaration: IrFunction) {
         context.log{"visitFunction                  : ${ir2string(declaration)}"}
+
         val body = declaration.body
 
         if (declaration.descriptor.modality == Modality.ABSTRACT) return
@@ -809,12 +825,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun evaluateGetObjectValue(value: IrGetObjectValue): LLVMValueRef =
             functionGenerationContext.getObjectValue(
-                    value.symbol.owner,
-                    value.symbol.objectIsShared && context.config.threadsAreAllowed,
-                    currentCodeContext.exceptionHandler,
-                    value.startLocation
+                value.symbol.owner,
+                value.symbol.objectIsShared && context.config.threadsAreAllowed,
+                currentCodeContext.exceptionHandler,
+                value.startLocation
             )
-
 
     //-------------------------------------------------------------------------//
 

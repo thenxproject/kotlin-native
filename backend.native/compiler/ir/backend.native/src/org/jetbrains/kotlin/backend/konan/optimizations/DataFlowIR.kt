@@ -47,6 +47,47 @@ import org.jetbrains.kotlin.types.typeUtil.immediateSupertypes
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 
+private val symbolNameAnnotation = FqName("konan.SymbolName")
+
+private val exportForCppRuntimeAnnotation = FqName("konan.internal.ExportForCppRuntime")
+
+private val cnameAnnotation = FqName("konan.internal.CName")
+
+private val exportForCompilerAnnotation = FqName("konan.internal.ExportForCompiler")
+
+/**
+ * Defines whether the declaration is exported, i.e. visible from other modules.
+ *
+ * Exported declarations must have predictable and stable ABI
+ * that doesn't depend on any internal transformations (e.g. IR lowering),
+ * and so should be computable from the descriptor itself without checking a backend state.
+ */
+private tailrec fun DeclarationDescriptor.hasSpecialHackAnnotation(): Boolean {
+    if (this.descriptor.annotations.findAnnotation(symbolNameAnnotation) != null) {
+        // Treat any `@SymbolName` declaration as exported.
+        return true
+    }
+    if (this.descriptor.annotations.findAnnotation(exportForCppRuntimeAnnotation) != null) {
+        // Treat any `@ExportForCppRuntime` declaration as exported.
+        return true
+    }
+    if (this.descriptor.annotations.findAnnotation(cnameAnnotation) != null) {
+        // Treat `@CName` declaration as exported.
+        return true
+    }
+    if (this.descriptor.annotations.hasAnnotation(exportForCompilerAnnotation)) {
+        return true
+    }
+
+    val parent = this.parent
+    if (parent is IrDeclaration) {
+        return parent.hasSpecialHackAnnotation()
+    }
+
+    return true
+}
+>>>>>>> 4e1c85473... a simple call graph based dead code elimination phase
+
 internal object DataFlowIR {
 
     abstract class Type(val isFinal: Boolean, val isAbstract: Boolean,
