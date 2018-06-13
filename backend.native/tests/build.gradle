@@ -2743,7 +2743,6 @@ if (isMac() && project.testTarget != 'wasm32') {
         swiftSources = ['framework/values/values.swift']
     }
 
-
     task testStdlibFramework(type: FrameworkTest) {
         frameworkName = 'Stdlib'
         konanArtifacts {
@@ -2758,7 +2757,6 @@ if (isMac() && project.testTarget != 'wasm32') {
         }
         swiftSources = ['framework/stdlib/stdlib.swift']
     }
-    
 }
 
 task buildKonanStdlibTests(type: BuildKonanTest) {

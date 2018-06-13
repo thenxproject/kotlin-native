@@ -86,7 +86,6 @@ private tailrec fun DeclarationDescriptor.hasSpecialHackAnnotation(): Boolean {
 
     return true
 }
->>>>>>> 4e1c85473... a simple call graph based dead code elimination phase
 
 internal object DataFlowIR {
 

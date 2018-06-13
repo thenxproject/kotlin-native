@@ -98,7 +98,6 @@ internal fun emitLLVM(context: Context) {
 
         privateFunctions.forEachIndexed { index, it ->
             if (dceNotNeeded.contains(it)) {
-                // println("### DCE: skipping private function ${it.name} $it")
                 return@forEachIndexed
             }
 
