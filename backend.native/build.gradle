@@ -158,9 +158,6 @@ dependencies {
 classes.dependsOn 'compilerClasses', 'cli_bcClasses', 'bc_frontendClasses'
 
 
-// These are just a couple of aliases
-task stdlib(dependsOn: "${hostName}Stdlib")
-
 def commonSrc = file('build/stdlib')
 
 task unzipStdlibSources(type: Copy) {
@@ -216,41 +213,36 @@ task teamcityPublishStdLibSources {
 // so we provide custom values for
 // konan.home, --runtime, -Djava.library.path etc
 
-targetList.each { target ->
-    def konanJvmArgs =  [*HostManager.regularJvmArgs,
-            "-Dkonan.home=${rootProject.projectDir}/dist",
-            "-Djava.library.path=${project.buildDir}/nativelibs/$hostName",
-    ]
+def konanJvmArgs =  [*HostManager.regularJvmArgs,
+        "-Dkonan.home=${rootProject.projectDir}/dist",
+        "-Djava.library.path=${project.buildDir}/nativelibs/$hostName",
+]
 
-    def defaultArgs = ['-nopack', '-nostdlib', '-nodefaultlibs']
-    if (target != "wasm32") defaultArgs += '-g'
-    def konanArgs = [*defaultArgs,
-                     '-target', target,
-                     "-Xruntime=${project(':runtime').file('build/' + target + '/runtime.bc')}",
-                     *project.globalBuildArgs]
+def defaultArgs = ['-nopack', '-nostdlib', '-nodefaultlibs']
+def konanArgs = [*defaultArgs,
+                 //"-Xruntime=${project(':runtime').file('build/' + target + '/runtime.bc')}",
+                 *project.globalBuildArgs]
 
-    task("${target}Stdlib", type: JavaExec) {
-        main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
-        classpath = project.configurations.cli_bc
-        jvmArgs = konanJvmArgs
-        args = [*konanArgs,
-                '-output', project(':runtime').file("build/${target}Stdlib"),
-                '-produce', 'library', '-module-name', 'stdlib', '-XXLanguage:+AllowContractsForCustomFunctions',
-                '-Xmulti-platform', '-Xuse-experimental=kotlin.Experimental', '-XXLanguage:+InlineClasses',
-                '-Xuse-experimental=kotlin.contracts.ExperimentalContracts',
-                '-Xuse-experimental=kotlin.ExperimentalMultiplatform',
-                '-Xallow-result-return-type',
-                commonSrc.absolutePath,
-                "-Xcommon-sources=${commonSrc.absolutePath}",
-                *stdLibSrc]
-        stdLibSrc.forEach { inputs.dir(it) }
-        inputs.dir(commonSrc)
-        outputs.dir(project(':runtime').file("build/${target}Stdlib"))
+task("stdlib", type: JavaExec) {
+    main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
+    classpath = project.configurations.cli_bc
+    jvmArgs = konanJvmArgs
+    args = [*konanArgs,
+            '-output', project(':runtime').file("build/stdlib"),
+            '-produce', 'library', '-module-name', 'stdlib', '-XXLanguage:+AllowContractsForCustomFunctions',
+            '-Xmulti-platform', '-Xuse-experimental=kotlin.Experimental', '-XXLanguage:+InlineClasses',
+            '-Xuse-experimental=kotlin.contracts.ExperimentalContracts',
+            '-Xuse-experimental=kotlin.ExperimentalMultiplatform',
+            '-Xallow-result-return-type',
+            commonSrc.absolutePath,
+            "-Xcommon-sources=${commonSrc.absolutePath}",
+            *stdLibSrc]
+    stdLibSrc.forEach { inputs.dir(it) }
+    inputs.dir(commonSrc)
+    outputs.dir(project(':runtime').file("build/stdlib"))
 
-        dependsOn 'unzipStdlibSources'
-        dependsOn ":runtime:${target}Runtime"
-        dependsOn ":distCompiler"
-    }
+    dependsOn 'unzipStdlibSources'
+    dependsOn ':distCompiler'
 }
 
 task run {

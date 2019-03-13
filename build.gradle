@@ -344,7 +344,14 @@ task crossDistPlatformLibs {
 targetList.each { target ->
     task("${target}CrossDistRuntime", type: Copy) {
         dependsOn ":runtime:${target}Runtime"
-        dependsOn ":backend.native:${target}Stdlib"
+        /**
+         * TODO: WIP here option to skip stdlib compilation, i.e. succesed steps will use stdlib from
+         * the dist, build before (e.g. on previous agent on a chain)
+         * to emulate: replace [true], with [false].
+         */
+        if (true) {
+            dependsOn ":backend.native:stdlib"
+        }
 
         destinationDir distDir
 
@@ -439,6 +446,25 @@ task 'tc-dist'(type: (isWindows()) ? Zip : Tar) {
     baseName = "kotlin-native-dist-$simpleOsName-$konanVersionFull"
     from("$project.rootDir/dist") {
         include '**'
+        exclude 'dependencies'
+        into baseName
+    }
+
+    destinationDir = file('.')
+
+    if (isWindows()) {
+        zip64 true
+    } else {
+        extension = 'tar.gz'
+        compression = Compression.GZIP
+    }
+}
+
+task 'tc-dist-stdlib'(type: (isWindows()) ? Zip : Tar) {
+    dependsOn('commonDistRuntime')
+    baseName = "kotlin-native-dist-stdlib-$konanVersionFull"
+    from("$project.rootDir/dist") {
+        include 'klib/common/stdlib/**'
         exclude 'dependencies'
         into baseName
     }
