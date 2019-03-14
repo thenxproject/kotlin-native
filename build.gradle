@@ -460,24 +460,37 @@ task 'tc-dist'(type: (isWindows()) ? Zip : Tar) {
     }
 }
 
-task 'tc-dist-stdlib'(type: (isWindows()) ? Zip : Tar) {
-    dependsOn('backend.native:stdlib')
-    dependsOn('commonDistRuntime')
-    baseName = "kotlin-native-dist-stdlib-$konanVersionFull"
-    from("$project.rootDir/dist") {
-        include 'klib/common/stdlib/**'
-        exclude 'dependencies'
-        into baseName
-    }
+def archivators = [Zip, Tar]
+archivators.forEach { archivator ->
+    task "${archivatorToArchiveStlibTaskName(archivator)}"(type: archivator) {
+        dependsOn('backend.native:stdlib')
+        dependsOn('commonDistRuntime')
+        baseName = "kotlin-native-dist-stdlib-$konanVersionFull"
+        from("$project.rootDir/dist") {
+            include 'klib/common/stdlib/**'
+            exclude 'dependencies'
+            into baseName
+        }
 
-    destinationDir = file('.')
+        destinationDir = file('.')
 
-    if (isWindows()) {
-        zip64 true
-    } else {
-        extension = 'tar.gz'
-        compression = Compression.GZIP
+        if (archivator == Zip) {
+            zip64 true
+        } else {
+            extension = 'tar.gz'
+            compression = Compression.GZIP
+        }
+
     }
+}
+
+private String archivatorToArchiveStlibTaskName(Class<? extends AbstractArchiveTask> archivator) {
+    "tc-dist-stdlib$archivator.name"
+}
+
+task 'tc-dist-stdlib'(type: DefaultTask) {
+    dependsOn(archivatorToArchiveStlibTaskName(Zip))
+    dependsOn(archivatorToArchiveStlibTaskName(Tar))
 }
 
 task samples {
