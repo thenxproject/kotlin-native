@@ -326,7 +326,7 @@ task commonDistRuntime(type: Copy) {
     destinationDir distDir
 
     // Target independant common part.
-    from(project(':runtime').file("build/${hostName}Stdlib")) {
+    from(project(':runtime').file("build/stdlib")) {
         include('**')
         into(stdlib)
     }
@@ -440,8 +440,8 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
 }
 
 task 'tc-dist'(type: (isWindows()) ? Zip : Tar) {
-    dependsOn('distPlatformLibs')
     dependsOn('dist')
+    dependsOn('distPlatformLibs')
     def simpleOsName = HostManager.simpleOsName()
     baseName = "kotlin-native-dist-$simpleOsName-$konanVersionFull"
     from("$project.rootDir/dist") {
@@ -461,6 +461,7 @@ task 'tc-dist'(type: (isWindows()) ? Zip : Tar) {
 }
 
 task 'tc-dist-stdlib'(type: (isWindows()) ? Zip : Tar) {
+    dependsOn('backend.native:stdlib')
     dependsOn('commonDistRuntime')
     baseName = "kotlin-native-dist-stdlib-$konanVersionFull"
     from("$project.rootDir/dist") {
