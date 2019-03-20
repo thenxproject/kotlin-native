@@ -145,6 +145,8 @@ open class KonanGTest : KonanTest() {
         // Use GTEST logger to parse test results later
         testLogger = Logger.GTEST
         outputDirectory = "${project.testOutputStdlib}/$name"
+        val target = project.testTarget
+        executable = "$outputDirectory/${target.name}/$name.${target.family.exeSuffix}"
     }
 
     lateinit var statistics: Statistics
