@@ -154,7 +154,7 @@ internal class StepHandler(context: Context, val visitor: IrElementVisitor<Heade
 internal class ArrayIterationHandler(val context: Context) : HeaderInfoHandler<Nothing?> {
 
     private val symbols = context.ir.symbols
-    private val supportedArrays = symbols.arrays
+    private val supportedArrays = symbols.arrays + symbols.arrayList
 
     // No support for rare cases like `T : IntArray` for now.
     override val matcher = createIrCallMatcher {

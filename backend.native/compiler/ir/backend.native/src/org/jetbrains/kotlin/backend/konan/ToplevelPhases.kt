@@ -262,6 +262,11 @@ internal val bitcodePhase = namedIrModulePhase(
                 serializeDFGPhase then
                 deserializeDFGPhase then
                 devirtualizationPhase then
+                performByIrFile(
+                        name = "IrLowerByFileLate",
+                        description = "IR for loops Lowering by file",
+                        lower = forLoopsPhase2
+                ) then
                 escapeAnalysisPhase then
                 codegenPhase then
                 finalizeDebugInfoPhase then

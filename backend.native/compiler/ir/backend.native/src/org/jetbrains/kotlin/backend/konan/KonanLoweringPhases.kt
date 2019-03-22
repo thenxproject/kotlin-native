@@ -199,6 +199,12 @@ internal val forLoopsPhase = makeKonanFileLoweringPhase(
         description = "For loops lowering"
 )
 
+internal val forLoopsPhase2 = makeKonanFileLoweringPhase(
+        ::ForLoopsLowering,
+        name = "ForLoops 2",
+        description = "For loops lowering 2"
+)
+
 internal val dataClassesPhase = makeKonanFileLoweringPhase(
         ::DataClassOperatorsLowering,
         name = "DataClasses",

@@ -336,16 +336,16 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
         symbol.descriptor to symbolTable.referenceSimpleFunction(functionDescriptor)
     }.toMap()
 
-    val arrayGet = arrays.associateWith { it.descriptor.unsubstitutedMemberScope
+    val arrayGet = (arrays + arrayList).associateWith { it.descriptor.unsubstitutedMemberScope
             .getContributedFunctions(Name.identifier("get"), NoLookupLocation.FROM_BACKEND)
             .single().let { symbolTable.referenceSimpleFunction(it) } }
 
-    val arraySet = arrays.associateWith { it.descriptor.unsubstitutedMemberScope
+    val arraySet = (arrays + arrayList).associateWith { it.descriptor.unsubstitutedMemberScope
                     .getContributedFunctions(Name.identifier("set"), NoLookupLocation.FROM_BACKEND)
                     .single().let { symbolTable.referenceSimpleFunction(it) } }
 
 
-    val arraySize = arrays.associateWith { it.descriptor.unsubstitutedMemberScope
+    val arraySize = (arrays + arrayList).associateWith { it.descriptor.unsubstitutedMemberScope
                     .getContributedVariables(Name.identifier("size"), NoLookupLocation.FROM_BACKEND)
                     .single().let { symbolTable.referenceSimpleFunction(it.getter!!) } }
 
