@@ -1677,6 +1677,13 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         context.log{"evaluateReturnableBlock         : ${value.statements.forEach { ir2string(it) }}"}
 
         val returnableBlockScope = ReturnableBlockScope(value)
+        // Add trampoline block that denotes "callsite" to inline function.
+        if (context.shouldContainDebugInfo()) {
+            val callSiteLocation = LocationInfo(currentCodeContext.scope()!!, value.startLine(), value.startColumn())
+            val trampolineBlock = functionGenerationContext.basicBlock("trampoline_to_inline", callSiteLocation)
+            functionGenerationContext.br(trampolineBlock)
+            functionGenerationContext.positionAtEnd(trampolineBlock)
+        }
         using(returnableBlockScope) {
             using(VariableScope()) {
                 value.statements.forEach {

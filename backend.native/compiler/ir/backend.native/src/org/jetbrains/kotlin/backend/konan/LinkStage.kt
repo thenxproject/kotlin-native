@@ -101,7 +101,6 @@ internal class LinkStage(val context: Context) {
         val configurables = platform.configurables as WasmConfigurables
 
         val combinedBc = temporary("combined", ".bc")
-        // TODO: use -only-needed for the stdlib
         hostLlvmTool("llvm-link", *bitcodeFiles.toTypedArray(), "-o", combinedBc)
         val optFlags = (configurables.optFlags + when {
             optimize -> configurables.optOptFlags
@@ -122,17 +121,17 @@ internal class LinkStage(val context: Context) {
         return linkedWasm
     }
 
-    private fun llvmLinkAndLlc(bitcodeFiles: List<BitcodeFile>): String {
+    private fun llvmLinkAndLlc(bitcodeFiles: List<BitcodeFile>, optFlags: List<String>, llcFlags: List<String>): String {
         val combinedBc = temporary("combined", ".bc")
         hostLlvmTool("llvm-link", "-o", combinedBc, *bitcodeFiles.toTypedArray())
 
         val optimizedBc = temporary("optimized", ".bc")
-        val optFlags = llvmProfilingFlags() + listOf("-O3", "-internalize", "-globaldce")
-        hostLlvmTool("opt", combinedBc, "-o=$optimizedBc", *optFlags.toTypedArray())
+        val optFlagsWithProfiling = llvmProfilingFlags() + optFlags
+        hostLlvmTool("opt", combinedBc, "-o=$optimizedBc", *optFlagsWithProfiling.toTypedArray())
 
         val combinedO = temporary("combined", ".o")
-        val llcFlags = llvmProfilingFlags() + listOf("-function-sections", "-data-sections")
-        hostLlvmTool("llc", optimizedBc, "-filetype=obj", "-o", combinedO, *llcFlags.toTypedArray())
+        val llcFlagsWithProfiling = llvmProfilingFlags() + llcFlags
+        hostLlvmTool("llc", optimizedBc, "-filetype=obj", "-o", combinedO, *llcFlagsWithProfiling.toTypedArray())
 
         return combinedO
     }
@@ -230,9 +229,20 @@ internal class LinkStage(val context: Context) {
             is WasmConfigurables
             -> bitcodeToWasm(bitcodeFiles)
             is ZephyrConfigurables
-            -> llvmLinkAndLlc(bitcodeFiles)
+            -> llvmLinkAndLlc(bitcodeFiles,
+                    listOf("-O3", "-internalize", "-globaldce"),
+                    listOf("-function-sections", "-data-sections"))
             else
-            -> llvmLto(bitcodeFiles)
+            -> if (context.shouldContainDebugInfo()) {
+                // We pass `-O0` to prevent LLVM from removing trampoline blocks.
+                val optFlags = listOf("-O0", "-internalize", "-globaldce")
+                val llcFlags = listOf("-O0", "-function-sections", "-data-sections",
+                        *platform.llvmLtoDynamicFlags.toTypedArray(),
+                        *platform.llvmLtoFlags.toTypedArray())
+                llvmLinkAndLlc(bitcodeFiles, optFlags, llcFlags)
+            } else {
+                llvmLto(bitcodeFiles)
+            }
         })
     }
 
