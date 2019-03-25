@@ -124,13 +124,9 @@ fun <T: KonanTest> Project.createTest(name: String, type: Class<T>, config: Clos
             if (enabled) {
                 // Configure test task.
                 val target = project.testTarget
-                val compileTask = project.tasks.getByName("compileKonan${name.capitalize()}${target.name.capitalize()}")
                 // If run task depends on something, compile task should also depend on this.
-                val dependencies = dependsOn.toList() // save to the list, otherwise it will cause cyclic dependency.
-                compileTask.dependsOn(dependencies)
-                // Run task should depend on compile task.
-                dependsOn(compileTask)
-                setDistDependencyFor(compileTask)
+                val compileTask = project.tasks.getByName("compileKonan${name.capitalize()}${target.name.capitalize()}")
+                compileTask.setSameDependenciesAs(this)
                 if (doBefore != null) compileTask.doFirst(doBefore!!)
                 compileTask.enabled = enabled
             }

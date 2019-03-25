@@ -57,7 +57,7 @@ fun codesign(project: Project, path: String) {
 }
 
 /**
- * Creates a list of file paths to be compiled from the given list with regard to exclude list.
+ * Creates a list of file paths to be compiled from the given [compile] list with regard to [exclude] list.
  */
 fun Project.getFilesToCompile(compile: List<String>, exclude: List<String>): List<String> {
     // convert exclude list to paths
@@ -91,6 +91,25 @@ fun Project.setDistDependencyFor(t: Task) {
             t.dependsOn(rootTasks.getByName("${target.name}CrossDist"))
         }
     }
+}
+
+/**
+ * @see setDistDependencyFor
+ */
+fun String.setSameDependenciesAs(task: Task) {
+    val t = task.project.tasks.getByName(this)
+    t.setSameDependenciesAs(task)
+}
+
+/**
+ * Sets the same dependencies for the receiver task from the given [task]
+ * and make [task] depend on receiver
+ */
+fun Task.setSameDependenciesAs(task: Task) {
+    val dependencies = task.dependsOn.toList() // save to the list, otherwise it will cause cyclic dependency.
+    this.dependsOn(dependencies)
+    // Run task should depend on compile task.
+    task.dependsOn(this)
 }
 
 //endregion

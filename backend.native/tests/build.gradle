@@ -286,7 +286,9 @@ Task linkTest(String name, Closure<KonanLinkTest> configureClosure) {
                     extraOpts task.flags
                     extraOpts project.globalTestArgs
                 }
-                UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
+                String libTaskName = "compileKonan${lib.capitalize()}${targetName.capitalize()}"
+                UtilsKt.setDistDependencyFor(project, libTaskName)
+                UtilsKt.setSameDependenciesAs(libTaskName, task as KonanLinkTest)
 
                 // Build an executable with library
                 program(name, targets: [targetName]) {
@@ -298,7 +300,7 @@ Task linkTest(String name, Closure<KonanLinkTest> configureClosure) {
                     extraOpts task.flags
                     extraOpts project.globalTestArgs
                     // depend on library build task
-                    dependsOn "compileKonan${lib.capitalize()}${targetName.capitalize()}"
+                    dependsOn libTaskName
                 }
             }
         }
@@ -3043,7 +3045,10 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
                     if (conf.pkg != null) packageName(conf.pkg)
                     baseDir "$testOutputLocal/$name"
                 }
-                UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${target.name.capitalize()}")
+                def libTask = "compileKonan${lib.capitalize()}${target.name.capitalize()}"
+                libTask.dependsOn(project.findProject(":Interop:Runtime"))
+                UtilsKt.setDistDependencyFor(project, libTask)
+                UtilsKt.setSameDependenciesAs(libTask, task as KonanInteropTest)
 
                 program(name, targets: [target.name ?: 'host']) {
                     libraries {
