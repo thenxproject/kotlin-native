@@ -82,7 +82,7 @@ fun Project.setDistDependencyFor(taskName: String) {
 fun Project.setDistDependencyFor(t: Task) {
     val rootTasks = project.rootProject.tasks
     // We don't build the compiler if a custom dist path is specified.
-    if (project.findProperty("useCustomDist") != null) {
+    if (!(project.findProperty("useCustomDist") as Boolean)) {
         t.dependsOn(rootTasks.getByName("dist"))
         val target = project.testTarget
         if (target != HostManager.host) {

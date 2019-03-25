@@ -270,7 +270,7 @@ Task standaloneTest(String name, Closure configureClosure) {
 }
 
 /**
- * Creates a task for a interop test. Configures runner and adds library and test build tasks.
+ * Creates a task for a linking test. Configures runner and adds library and test build tasks.
  */
 Task linkTest(String name, Closure<KonanLinkTest> configureClosure) {
     return KotlinNativeTestKt.createTest(project, name, KonanLinkTest) { task ->
