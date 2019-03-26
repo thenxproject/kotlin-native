@@ -3023,7 +3023,6 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
         task.configure(configureClosure)
         if (task.enabled) {
             konanArtifacts {
-                // TODO: get rid of the kotlinNativeInterop here used only for the properties
                 def conf = project.kotlinNativeInterop[task.interop]
                 def lib = conf.name + name
                 interop(lib, targets: [target.name ?: 'host']) {
