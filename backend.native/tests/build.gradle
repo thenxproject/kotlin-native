@@ -3045,7 +3045,6 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
                     baseDir "$testOutputLocal/$name"
                 }
                 def libTask = "compileKonan${lib.capitalize()}${target.name.capitalize()}"
-                libTask.dependsOn(project.findProject(":Interop:Runtime"))
                 UtilsKt.setDistDependencyFor(project, libTask)
                 UtilsKt.setSameDependenciesAs(libTask, task as KonanInteropTest)
 
