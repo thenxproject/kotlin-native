@@ -193,7 +193,6 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 tailrecPhase then
                                 defaultParameterExtentPhase then
                                 innerClassPhase then
-                                forLoopsPhase then
                                 dataClassesPhase then
                                 builtinOperatorPhase then
                                 finallyBlocksPhase then
@@ -263,9 +262,9 @@ internal val bitcodePhase = namedIrModulePhase(
                 deserializeDFGPhase then
                 devirtualizationPhase then
                 performByIrFile(
-                        name = "IrLowerByFileLate",
-                        description = "IR for loops Lowering by file",
-                        lower = forLoopsPhase2
+                        name = "IrLowerByFileAfterDevirt",
+                        description = "Perform lowerings that rely on devirtualization.",
+                        lower = forLoopsPhase
                 ) then
                 escapeAnalysisPhase then
                 codegenPhase then

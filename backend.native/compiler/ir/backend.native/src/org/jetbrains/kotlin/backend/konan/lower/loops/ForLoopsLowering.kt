@@ -11,8 +11,10 @@ import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irIfThen
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
@@ -59,11 +61,16 @@ private class RangeLoopTransformer(
     fun getScopeOwnerSymbol() = currentScope!!.scope.scopeOwnerSymbol
 
     override fun visitVariable(declaration: IrVariable): IrStatement {
-        val initializer = declaration.initializer
-        if (initializer == null || initializer !is IrCall) {
-            return super.visitVariable(declaration)
+        val initializer = declaration.initializer ?: return super.visitVariable(declaration)
+
+        val origin: IrStatementOrigin? = when (initializer) {
+            is IrBlock -> getDevirtualizedCall(initializer) {
+                it.origin == IrStatementOrigin.FOR_LOOP_ITERATOR || it.origin == IrStatementOrigin.FOR_LOOP_NEXT
+            }?.origin
+            is IrCall -> initializer.origin
+            else -> null
         }
-        return when (initializer.origin) {
+        return when (origin) {
             IrStatementOrigin.FOR_LOOP_ITERATOR ->
                 processHeader(declaration)
             IrStatementOrigin.FOR_LOOP_NEXT ->
@@ -191,23 +198,60 @@ private class RangeLoopTransformer(
         }
     }
 
-    private fun getLoopHeader(oldCondition: IrExpression):  ForLoopHeader? {
-        if (oldCondition !is IrCall || oldCondition.origin != IrStatementOrigin.FOR_LOOP_HAS_NEXT) {
-            return null
+    private inner class CallSiteFinder(val criteria: (IrCall) -> Boolean): IrElementVisitorVoid {
+
+        var callSite: IrCall? = null
+            private set
+
+        override fun visitElement(element: IrElement) {
+            return element.acceptChildrenVoid(this)
         }
-        val irIteratorAccess = oldCondition.dispatchReceiver as? IrGetValue
-                ?: throw AssertionError()
+
+        override fun visitCall(expression: IrCall) {
+            if (criteria(expression)) {
+                callSite = expression
+            } else {
+                expression.acceptChildrenVoid(this)
+            }
+        }
+    }
+
+    private fun getOriginalDispatchReceiver(expression: IrExpression?, criteria: (IrGetValue) -> Boolean): IrGetValue? {
+        if (expression != null && expression is IrGetValue) {
+            if (criteria(expression)) return expression
+            val owner = expression.symbol.owner
+            if (owner is IrVariable) {
+                return getOriginalDispatchReceiver(owner.initializer, criteria)
+            }
+        }
+        return null
+    }
+
+    private fun getDevirtualizedCall(expression: IrExpression, criteria: (IrCall) -> Boolean): IrCall?
+            = CallSiteFinder(criteria).also { expression.acceptChildrenVoid(it) }.callSite
+
+    private fun getLoopHeader(oldCondition: IrExpression):  ForLoopHeader? {
+        val irIteratorAccess = getDevirtualizedCall(oldCondition) { it.origin == IrStatementOrigin.FOR_LOOP_HAS_NEXT }
+                ?: return null
+
+        val iteratorAccess = getOriginalDispatchReceiver(irIteratorAccess.dispatchReceiver) {
+            it.symbol.owner.origin == IrDeclarationOrigin.FOR_LOOP_ITERATOR
+        } ?: return null
+
         // Return null if we didn't lower the corresponding header.
-        return iteratorToLoopHeader[irIteratorAccess.symbol]
+        return iteratorToLoopHeader[iteratorAccess.symbol]
     }
 
     // Lower getting a next induction variable value.
     fun processNext(variable: IrVariable): IrExpression? {
-        val initializer = variable.initializer as IrCall
+        val initializer = getDevirtualizedCall(variable.initializer!!) { it.origin == IrStatementOrigin.FOR_LOOP_NEXT }
+                ?: return null
 
-        val iterator = initializer.dispatchReceiver as? IrGetValue
-                ?: throw AssertionError()
-        val forLoopInfo = iteratorToLoopHeader[iterator.symbol]
+        val iteratorAccess = getOriginalDispatchReceiver(initializer.dispatchReceiver) {
+            it.symbol.owner.origin == IrDeclarationOrigin.FOR_LOOP_ITERATOR
+        } ?: return null
+
+        val forLoopInfo = iteratorToLoopHeader[iteratorAccess.symbol]
                 ?: return null  // If we didn't lower a corresponding header.
         val plusOperator = symbols.getBinaryOperator(
                 OperatorNameConventions.PLUS,
