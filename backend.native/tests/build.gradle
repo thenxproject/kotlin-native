@@ -3042,6 +3042,7 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
                     }
 
                     if (conf.pkg != null) packageName(conf.pkg)
+                    if (conf.linkerOpts != null) linkerOpts(conf.linkerOpts)
                     baseDir "$testOutputLocal/$name"
                 }
                 def libTask = "compileKonan${lib.capitalize()}${target.name.capitalize()}"
