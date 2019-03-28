@@ -235,10 +235,10 @@ internal class LinkStage(val context: Context) {
             else
             -> if (context.shouldContainDebugInfo()) {
                 // We pass `-O0` to prevent LLVM from removing trampoline blocks.
-                val optFlags = listOf("-O0", "-internalize", "-globaldce")
-                val llcFlags = listOf("-O0", "-function-sections", "-data-sections",
-                        *platform.llvmLtoDynamicFlags.toTypedArray(),
-                        *platform.llvmLtoFlags.toTypedArray())
+                val optFlags = platform.llvmDebugOptFlags
+                val llcFlags = platform.llvmDebugLlcFlags +
+                        platform.llvmLtoDynamicFlags +
+                        platform.llvmLtoFlags
                 llvmLinkAndLlc(bitcodeFiles, optFlags, llcFlags)
             } else {
                 llvmLto(bitcodeFiles)
